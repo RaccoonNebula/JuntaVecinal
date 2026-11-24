@@ -18,6 +18,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Direccion del api-gateway. 10.0.2.2 es el computador visto desde el emulador.
+        // Se puede cambiar con -PapiBaseUrl=http://localhost:9090/ (telefono con adb reverse)
+        val apiBaseUrl = providers.gradleProperty("apiBaseUrl").getOrElse("http://10.0.2.2:9090/")
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
@@ -34,6 +39,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -42,6 +48,14 @@ dependencies {
     implementation("androidx.room:room-runtime:2.8.5")
     implementation("androidx.room:room-ktx:2.8.5")
     ksp("androidx.room:room-compiler:2.8.5")
+
+    //Dependencias de red: comunicacion con el backend
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    //Dependencia para guardar la sesion
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
 
     //Dependencia para mostrar foto de comprobante en FinanzaScreen
     implementation("io.coil-kt:coil-compose:2.7.0")

@@ -5,8 +5,13 @@ import androidx.room.PrimaryKey
 
 enum class EstadoReserva(val etiqueta: String) {
     PENDIENTE("Pendiente"),
+    REQUIERE_AJUSTES("Requiere ajustes"),
     CONFIRMADA("Confirmada"),
-    CANCELADA("Cancelada")
+    RECHAZADA("Rechazada"),
+    CANCELADA("Cancelada");
+
+    /** Estados finales: la reserva ya no ocupa horario. */
+    val finalizada: Boolean get() = this == RECHAZADA || this == CANCELADA
 }
 
 enum class TipoMovimiento(val etiqueta: String) {
@@ -14,10 +19,10 @@ enum class TipoMovimiento(val etiqueta: String) {
     GASTO("Gasto")
 }
 
-/** DB de reserva/arriendo de una dependencia de la junta */
+/** Cache local de una reserva. El registro oficial esta en el backend. */
 @Entity(tableName = "reservas")
 data class Reserva(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey val id: Int = 0,
     val solicitante: String,
     val telefono: String,
     val dependencia: String,
@@ -29,19 +34,76 @@ data class Reserva(
     val motivo: String,
     val usaCocina: Boolean,
     val monto: Int,
-    val estado: EstadoReserva = EstadoReserva.PENDIENTE
+    val estado: EstadoReserva = EstadoReserva.PENDIENTE,
+    val usuarioId: Int = 0,
+    val dependenciaId: Int = 0,
+    val observacion: String = ""
 )
 
-/** DB de ingreso o gasto de la junta de vecinos. El comprobante de la
- * foto tomada con la cámara (se guardara la ruta de la foto) */
+/** Cache local de un ingreso o gasto. comprobanteId identifica la foto guardada en el backend. */
 @Entity(tableName = "movimientos")
 data class Movimiento(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey val id: Int = 0,
     val tipo: TipoMovimiento,
     val categoria: String,
     val descripcion: String,
     val monto: Int,
     val fecha: String,
     val fechaMs: Long,
-    val comprobantePath: String? = null
+    val reservaId: Int? = null,
+    val medioPago: String? = null,
+    val referencia: String? = null,
+    val comprobanteId: Int? = null
 )
+
+@Entity(tableName = "dependencias")
+data class Dependencia(
+    @PrimaryKey val id: Int = 0,
+    val nombre: String,
+    val capacidad: Int,
+    val descripcion: String = "",
+    val ubicacion: String = "",
+    val activa: Boolean = true
+)
+
+data class Categoria(
+    val id: Int = 0,
+    val nombre: String,
+    val tipo: TipoMovimiento,
+    val descripcion: String = "",
+    val activa: Boolean = true
+)
+
+data class Sede(
+    val nombre: String = "",
+    val direccion: String = "",
+    val descripcion: String = "",
+    val reglamento: String = "",
+    val instruccionesPago: String = ""
+)
+
+data class Usuario(
+    val id: Int = 0,
+    val nombre: String,
+    val email: String,
+    val telefono: String,
+    val rol: Rol,
+    val activo: Boolean = true
+)
+
+data class Aviso(
+    val id: Int,
+    val tipo: String,
+    val titulo: String,
+    val mensaje: String,
+    val reservaId: Int? = null,
+    val movimientoId: Int? = null,
+    val fechaCreacion: String,
+    val leida: Boolean
+)
+
+data class Horario(val horaInicio: String, val horaFin: String)
+
+data class EstadoEtiqueta(val codigo: String, val etiqueta: String)
+
+data class Visibilidad(val mostrarResumen: Boolean = false, val mostrarMovimientos: Boolean = false)

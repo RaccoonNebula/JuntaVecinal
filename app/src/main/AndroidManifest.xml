@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Comunicacion con el backend -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Desde Android 17 se exige para llegar a un backend en la red local (10.0.2.2) -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
     <!-- Recurso nativo: camara (para comprobantes de pago) -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -17,7 +22,9 @@
     </queries>
 
     <application
-        android:allowBackup="true"
+        android:name=".JuntaVecinosApp"
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"

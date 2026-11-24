@@ -5,11 +5,17 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Reserva::class, Movimiento::class], version = 1, exportSchema = false)
+/** Cache local. Desde la version 2 los datos oficiales estan en el backend. */
+@Database(
+    entities = [Reserva::class, Movimiento::class, Dependencia::class],
+    version = 2,
+    exportSchema = false
+)
 abstract class AppDatabase: RoomDatabase() {
 
     abstract fun reservaDao(): ReservaDao
     abstract fun movimientoDao(): MovimientoDao
+    abstract fun dependenciaDao(): DependenciaDao
 
     companion object {
         @Volatile
@@ -21,7 +27,7 @@ abstract class AppDatabase: RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "junta_vecinos.db"
-                ).build().also { instancia = it }
+                ).fallbackToDestructiveMigration(true).build().also { instancia = it }
             }
     }
 

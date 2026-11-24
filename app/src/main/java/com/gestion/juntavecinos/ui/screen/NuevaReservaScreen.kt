@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,12 +33,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gestion.juntavecinos.model.Catalogo
+import com.gestion.juntavecinos.model.Dependencia
 import com.gestion.juntavecinos.ui.component.BotonAnimado
 import com.gestion.juntavecinos.ui.component.CampoFecha
 import com.gestion.juntavecinos.ui.component.CampoSeleccion
 import com.gestion.juntavecinos.ui.component.CampoTexto
 import com.gestion.juntavecinos.ui.component.MensajeError
 import com.gestion.juntavecinos.ui.component.PantallaBase
+import com.gestion.juntavecinos.ui.preview.PreviewData
 import com.gestion.juntavecinos.ui.state.ReservaErrores
 import com.gestion.juntavecinos.ui.state.ReservaFormState
 import com.gestion.juntavecinos.ui.theme.JuntaVecinosTheme
@@ -60,28 +65,35 @@ data class ReservaFormActiones(
 @Composable
 fun NuevaReservaScreen(
     form: ReservaFormState,
+    dependencias: List<Dependencia> = emptyList(),
     acciones: ReservaFormActiones = ReservaFormActiones(),
     onBack: () -> Unit = {}
 ) {
     val horizontal = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    PantallaBase(titulo = "Nueva reserva", onBack = onBack) { padding ->
+    PantallaBase(
+        titulo = if (form.corrigiendoId == null) "Solicitar reserva" else "Corregir solicitud",
+        onBack = onBack,
+        cargando = form.enviando
+    ) { padding ->
         Column(
-            Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
+            Modifier.padding(padding).consumeWindowInsets(padding).imePadding().padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (horizontal) {
                 // Horizontal: dos columnas de campos
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f)) { DatosSolicitante(form, acciones) }
+                    Column(Modifier.weight(1f)) { DatosSolicitante(form, dependencias, acciones) }
                     Column(Modifier.weight(1f)) { DatosReserva(form, acciones) }
                 }
             } else {
-                DatosSolicitante(form, acciones)
+                DatosSolicitante(form, dependencias, acciones)
                 DatosReserva(form, acciones)
             }
+            MensajeError(form.errorGeneral)
             BotonAnimado(
-                texto = "Guardar reserva",
+                texto = if (form.enviando) "Enviando…" else "Enviar solicitud",
+                habilitado = !form.enviando,
                 icono = Icons.Default.Check,
                 onClick = acciones.onGuardar,
                 modifier = Modifier.fillMaxWidth()
@@ -91,14 +103,14 @@ fun NuevaReservaScreen(
 }
 
 @Composable
-private fun DatosSolicitante(form: ReservaFormState, a: ReservaFormActiones) {
+private fun DatosSolicitante(form: ReservaFormState, dependencias: List<Dependencia>, a: ReservaFormActiones) {
     CampoTexto(form.solicitante, a.onSolicitante, "Nombre del solicitante",
         Icons.Default.Person, form.errores.solicitante)
     CampoTexto(form.telefono, a.onTelefono, "Teléfono (9 dígitos)",
         Icons.Default.Phone, form.errores.telefono, teclado = KeyboardType.Phone)
     CampoSeleccion(
         valor = form.dependencia,
-        opciones = Catalogo.dependencias.map { it.nombre },
+        opciones = dependencias.map { it.nombre },
         onSeleccion = a.onDependencia,
         etiqueta = "Dependencia",
         icono = Icons.Default.MeetingRoom,
@@ -113,6 +125,13 @@ private fun DatosSolicitante(form: ReservaFormState, a: ReservaFormActiones) {
 @Composable
 private fun DatosReserva(form: ReservaFormState, a: ReservaFormActiones) {
     CampoFecha(form.fecha, a.onFecha, "Fecha del arriendo", form.errores.fecha)
+    if (form.ocupados.isNotEmpty()) {
+        Text(
+            "Horarios ocupados: " + form.ocupados.joinToString { "${it.horaInicio}-${it.horaFin}" },
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         CampoSeleccion(form.horaInicio, Catalogo.horas, a.onHoraInicio,
             "Inicio", Icons.Default.Schedule, form.errores.horaInicio, Modifier.weight(1f))
@@ -141,7 +160,7 @@ private fun DatosReserva(form: ReservaFormState, a: ReservaFormActiones) {
 @Preview(showBackground = true, name = "Formulario vacío")
 @Composable
 private fun NuevaReservaPreview() {
-    JuntaVecinosTheme { NuevaReservaScreen(ReservaFormState()) }
+    JuntaVecinosTheme { NuevaReservaScreen(ReservaFormState(), PreviewData.dependencias) }
 }
 
 @Preview(showBackground = true, name = "Formulario con errores")

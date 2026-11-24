@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +26,8 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.gestion.juntavecinos.model.Catalogo
+import com.gestion.juntavecinos.model.Reserva
 import com.gestion.juntavecinos.model.TipoMovimiento
 import com.gestion.juntavecinos.ui.component.BotonAnimado
 import com.gestion.juntavecinos.ui.component.CampoFecha
@@ -58,6 +63,9 @@ data class MovimientoFormActiones(
     val onDescripcion: (String) -> Unit = {},
     val onMonto: (String) -> Unit = {},
     val onFecha: (String) -> Unit = {},
+    val onReserva: (Reserva?) -> Unit = {},
+    val onMedioPago: (String) -> Unit = {},
+    val onReferencia: (String) -> Unit = {},
     val onTomarFoto: () -> Unit = {},
     val onQuitarFoto: () -> Unit = {},
     val onGuardar: () -> Unit = {}
@@ -66,33 +74,44 @@ data class MovimientoFormActiones(
 @Composable
 fun NuevoMovimientoScreen(
     form: MovimientoFormState,
+    categorias: List<String> = emptyList(),
+    reservas: List<Reserva> = emptyList(),
     mensajeCamara: String? = null,
     acciones: MovimientoFormActiones = MovimientoFormActiones(),
     onBack: () -> Unit = {}
 ) {
     val horizontal = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    PantallaBase(titulo = "Registrar pago o gasto", onBack = onBack) { padding ->
+    PantallaBase(titulo = "Registrar pago o gasto", onBack = onBack, cargando = form.enviando) { padding ->
         Column(
-            Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
+            Modifier.padding(padding).consumeWindowInsets(padding).imePadding().padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (horizontal) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(1f)) { DatosMovimiento(form, acciones) }
+                    Column(Modifier.weight(1f)) { DatosMovimiento(form, categorias, reservas, acciones) }
                     Column(Modifier.weight(1f)) { Comprobante(form, mensajeCamara, acciones) }
                 }
             } else {
-                DatosMovimiento(form, acciones)
+                DatosMovimiento(form, categorias, reservas, acciones)
                 Comprobante(form, mensajeCamara, acciones)
             }
-            BotonAnimado("Guardar movimiento", Icons.Default.Check, acciones.onGuardar, Modifier.fillMaxWidth())
+            MensajeError(form.errorGeneral)
+            BotonAnimado(
+                if (form.enviando) "Guardando…" else "Guardar movimiento", Icons.Default.Check, acciones.onGuardar,
+                Modifier.fillMaxWidth(), habilitado = !form.enviando
+            )
         }
     }
 }
 
 @Composable
-private fun DatosMovimiento(form: MovimientoFormState, a: MovimientoFormActiones) {
+private fun DatosMovimiento(
+    form: MovimientoFormState,
+    categorias: List<String>,
+    reservas: List<Reserva>,
+    a: MovimientoFormActiones
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
         TipoMovimiento.entries.forEach { tipo ->
             FilterChip(
@@ -105,16 +124,36 @@ private fun DatosMovimiento(form: MovimientoFormState, a: MovimientoFormActiones
             )
         }
     }
-    val categorias = if (form.tipo == TipoMovimiento.INGRESO) Catalogo.categoriasIngreso else Catalogo.categoriasGasto
-
     CampoSeleccion(form.categoria, categorias,
         a.onCategoria, "Categoría", Icons.Default.Category, form.errores.categoria)
+
+    if (form.tipo == TipoMovimiento.INGRESO) PagoReserva(form, reservas, a)
 
     CampoTexto(form.descripcion, a.onDescripcion,
         "Descripción", Icons.Default.Description, form.errores.descripcion, lineas = 2)
 
     CampoTexto(form.monto, a.onMonto,
         "Monto (CLP, ficticio)", Icons.Default.AttachMoney, form.errores.monto, teclado = KeyboardType.Number)
+}
+
+/** Pago informativo: asocia el ingreso a una reserva confirmada que aun no tiene pago */
+@Composable
+private fun PagoReserva(form: MovimientoFormState, reservas: List<Reserva>, a: MovimientoFormActiones) {
+    val sinReserva = "Sin reserva asociada"
+    fun texto(r: Reserva) = "N° ${r.id} · ${r.dependencia} · ${r.fecha} · ${r.solicitante}"
+    CampoSeleccion(
+        valor = reservas.firstOrNull { it.id == form.reservaId }?.let { texto(it) } ?: sinReserva,
+        opciones = listOf(sinReserva) + reservas.map { texto(it) },
+        onSeleccion = { elegida -> a.onReserva(reservas.firstOrNull { texto(it) == elegida }) },
+        etiqueta = "Reserva confirmada (opcional)",
+        icono = Icons.Default.Event,
+        error = null
+    )
+    if (form.reservaId != null) {
+        CampoSeleccion(form.medioPago, Catalogo.mediosPago, a.onMedioPago,
+            "Medio informado (opcional)", Icons.Default.Payments, null)
+        CampoTexto(form.referencia, a.onReferencia, "Referencia (opcional)", Icons.Default.Description, null)
+    }
 }
 
 @Composable

@@ -26,6 +26,9 @@ object NotificacionHelper {
         }
     }
 
+    /** Al cerrar sesion se quitan las notificaciones visibles */
+    fun cancelarTodas(context: Context) = NotificationManagerCompat.from(context).cancelAll()
+
     /** Funciones para permitir activar notificaciones (TIRAMISU=Version 13 Android)*/
     fun requierePermiso(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 

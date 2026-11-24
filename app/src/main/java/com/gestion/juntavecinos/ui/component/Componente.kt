@@ -10,7 +10,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
@@ -29,15 +31,19 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,10 +67,23 @@ fun PantallaBase(
     titulo: String,
     onBack: (() -> Unit)? = null,
     floatingActionButton: @Composable () -> Unit = {},
+    acciones: @Composable RowScope.() -> Unit = {},
+    cargando: Boolean = false,
+    mensaje: String? = null,
+    onMensajeMostrado: () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(mensaje) {
+        if (mensaje != null) {
+            snackbar.showSnackbar(mensaje)
+            onMensajeMostrado()
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
+            Column {
             TopAppBar(
                 title = { Text(titulo, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
@@ -71,12 +93,16 @@ fun PantallaBase(
                         }
                     }
                 },
+                actions = acciones,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
+            if (cargando) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
         },
         floatingActionButton = floatingActionButton,
         content = content
@@ -162,7 +188,12 @@ fun CampoSeleccion(
             supportingText = { MensajeError(error) },
             modifier = Modifier.fillMaxWidth()
         )
-        Box(Modifier.matchParentSize().clickable { abierto = true })
+        // El area tactil cubre el campo, por eso describe su contenido para los lectores de pantalla
+        Box(
+            Modifier.matchParentSize().clickable(role = Role.Button) { abierto = true }.semantics {
+                contentDescription = "$etiqueta: " + valor.ifEmpty { "sin seleccionar" }
+            }
+        )
         DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
             opciones.forEach { opcion ->
                 DropdownMenuItem(
@@ -197,7 +228,12 @@ fun CampoFecha(
             supportingText = { MensajeError(error) },
             modifier = Modifier.fillMaxWidth()
         )
-        Box(Modifier.matchParentSize().clickable { mostrar = true })
+        // El area tactil cubre el campo, por eso describe su contenido para los lectores de pantalla
+        Box(
+            Modifier.matchParentSize().clickable(role = Role.Button) { mostrar = true }.semantics {
+                contentDescription = "$etiqueta: " + valor.ifEmpty { "sin seleccionar" }
+            }
+        )
     }
     if (mostrar) {
         val estado = rememberDatePickerState()
@@ -220,12 +256,13 @@ fun BotonAnimado(
     texto: String,
     icono: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    habilitado: Boolean = true
 ) {
     val interaccion = remember { MutableInteractionSource() }
     val presionado by interaccion.collectIsPressedAsState()
     val escala by animateFloatAsState(if (presionado) 0.95f else 1f, label = "escalaBoton")
-    Button(onClick = onClick, interactionSource = interaccion, modifier = modifier.scale(escala)) {
+    Button(onClick = onClick, enabled = habilitado, interactionSource = interaccion, modifier = modifier.scale(escala)) {
         Icon(icono, contentDescription = null)
         Spacer(Modifier.width(8.dp))
         Text(texto)
