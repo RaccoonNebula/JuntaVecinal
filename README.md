@@ -66,6 +66,9 @@ apiBaseUrl=http://localhost:9090/
 ```powershell
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" -d reverse tcp:9090 tcp:9090
 ```
+```para linux
+adb -d reverse tcp:9090 tcp:9090
+```
 
 6. Elegir el teléfono y presionar **Run**
 
