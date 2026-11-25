@@ -124,6 +124,11 @@ Se abren con el navegador:
 
 Las pruebas cubren  validaciones, fechas, comunicación, repositorios, estados y ViewModel. No se consideran las pantallas ni las clases que dependen del dispositivo (sesión cifrada, cámara, imágenes y notificaciones)
 
+## Para generar y firmar una nueva APK
+1. Cambiar nombre de `keystore.properties.example` a `keystore.properties`
+2. Escribir las contraseñas de `juntavecinos.jks`
+3. En Android Studio: **Build > Generate Signed App Bundle or APK**
+
 ## Problemas frecuentes
 | Problema | Solución |
 |---|---|
